@@ -7,5 +7,6 @@ RUN apt-get update && \
     bash ./install.sh -v ${CHEF_VER} && \
     rm install.sh && \
     apt-get purge -y curl && \
+    apt-get autoremove -y && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*

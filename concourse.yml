@@ -44,6 +44,8 @@ jobs:
     image: base-image
     config:
       platform: linux
+      inputs:
+      - name: src-git
       outputs:
       - name: chef
       run:
