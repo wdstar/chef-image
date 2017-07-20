@@ -1,0 +1,80 @@
+---
+# Concourse pipeline: chef-image
+#   $ fly -t target sp -p chef-image -c concourse.yml -l fly-vars.yml -l ~/sec/credentials-prod.yml
+resources:
+- name: src-git
+  type: git
+  source:
+    uri: https://github.com/wdstar/chef-image
+    branch: master
+- name: base-image
+  type: docker-image
+  source:
+    repository: debian
+    tag: stable-slim
+    registry_mirror: https://((registry-mirror-domain))
+      # e.g. https://registry.docker.example.com:5000
+    ca_certs:
+    - domain: ((registry-mirror-domain))
+      # e.g. registry.docker.example.com:5000
+      cert: ((docker-reg-ca-cert))
+  check_every: 1h
+- name: docker-reg
+  type: docker-image
+  source:
+    repository: ((docker-id))/((name))
+    #tag: latest
+    username: ((docker-id))
+    password: ((docker-pw))
+  check_every: 12h
+
+jobs:
+- name: build-img
+  plan:
+  - aggregate:
+    - get: src-git
+      params:
+        depth: 5
+      trigger: false
+    - get: base-image
+      #params:
+      #  skip_download: true
+      trigger: true
+  - task: put-chef-ver
+    image: base-image
+    config:
+      platform: linux
+      outputs:
+      - name: chef
+      run:
+        path: bash
+        args:
+        - -c
+        - |
+          source src-git/.env
+          echo "${CHEF_VER}" > chef/ver
+          echo "{\"CHEF_VER\": \"${CHEF_VER}\"}" > chef/build-args.json
+          cat chef/build-args.json
+  - put: docker-reg
+    params:
+      build: src-git
+      build_args_file: chef/build-args.json
+      tag: chef/ver
+      tag_as_latest: true
+    get_params:
+      skip_download: true
+- name: test-img
+  plan:
+  - get: docker-reg
+    trigger: true
+  - task: echo-chef-ver
+    image: docker-reg
+    config:
+      platform: linux
+      run:
+        path: bash
+        args:
+        - -c
+        - |
+          chef-client -v
+          knife -v
