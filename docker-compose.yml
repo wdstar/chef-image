@@ -1,11 +1,12 @@
 ---
 version: '2'
 services:
-  docker-image:
+  this-image:
     restart: 'no'
     build:
       context: ./
       args:
         CHEF_VER: ${CHEF_VER}
     image: ${DOCKER_ID}/${NAME}:${CHEF_VER}
-    #command: /bin/sh
+    # for test
+    command: /bin/sh -c 'while true; do echo dummy; sleep 600; done'
